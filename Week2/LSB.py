@@ -7,16 +7,13 @@ from PIL import Image
 import PLShandler as plsh
 
 PLS = []
-img = Image.open(r"images/in1.png")
-[row, col] = img.size
-
 
 def DataListInBit(data):
     dataBits = list(format(c, '08b') for c in bytearray(data.encode('latin-1')))
     return dataBits
 
 
-def PLSgen(row, col, lenEncodedText):
+def PLSgen(row, col, lenEncodedText, dirTxt):
     new = []
     for i in range(row * col):
         new.append(i)
@@ -26,11 +23,14 @@ def PLSgen(row, col, lenEncodedText):
     for i in range(lenEncodedText * 3):
         PLS.append(new[i])
     pixelLocaterSequence = np.array(PLS)
-    np.savetxt("pls.txt", pixelLocaterSequence, delimiter="\t")
+    np.savetxt(dirTxt, pixelLocaterSequence, delimiter="\t")
 
 
-def LsbEncoding(encodedText):
-    PLSgen(row, col, len(encodedText))
+def LsbEncoding(coverImagePath, stegoImageDir, encodedText, plsPassword):
+    img = Image.open(coverImagePath)
+    [row, col] = img.size
+    dirTxt = stegoImageDir + "/pls.txt"
+    PLSgen(row, col, len(encodedText), dirTxt)
     dataBits = DataListInBit(encodedText)
     dr = 0
     for i in range(0, len(encodedText) * 3, 3):
@@ -59,23 +59,27 @@ def LsbEncoding(encodedText):
             newrgb = (value[0], value[1], value[2])
             img.putpixel((rr, rc), newrgb)
         dr += 1
-    img.save("images/out1.png")
-    plsPassword = input("Insert Password for pls encyption :")
+    stegoImagePath = stegoImageDir + "/out1.png"
+    img.save(stegoImagePath)
+    # plsPassword = input("Insert Password for pls encyption :")
     key = hashlib.sha256(plsPassword.encode()).digest()
-    plsh.encrypt_file(key, 'pls.txt')
+    plsh.encrypt_file(key, dirTxt)
 
 
-def LsbDecoding():
-    plspassword = input("Insert Password for pls decryption :")
+def LsbDecoding(stegoImagePath, plsDir, plspassword):
+    # plspassword = input("Insert Password for pls decryption :")
     key = hashlib.sha256(plspassword.encode()).digest()
-    plsh.decrypt_file(key, 'pls.txt.enc', 'out.txt')
-    pls = np.genfromtxt('out.txt', delimiter='\t')
-    if os.path.exists("out.txt"):
-        os.remove("out.txt")
-    if os.path.exists("pls.txt.enc"):
-        os.remove("pls.txt.enc")
+    plsPath = plsDir + '/pls.txt.enc'
+    outPath = plsDir + '/out.txt'
+    plsh.decrypt_file(key, plsPath, outPath)
+    pls = np.genfromtxt(outPath, delimiter='\t')
+    # if os.path.exists(outPath):
+    #     os.remove(outPath)
+    # if os.path.exists(plsPath):
+    #     os.remove(plsPath)
     decodedTextInBits = []
-    stegoImage = Image.open(r"images/out1.png")
+    stegoImage = Image.open(stegoImagePath)
+    [row, col] = stegoImage.size
     for i in range(0, len(pls), 3):
         ithChar = ""
         for j in range(0, 3):
